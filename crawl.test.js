@@ -49,7 +49,7 @@ test("getURLsFromHTML both", () => {
 test("getURLsFromHTML handle error", () => {
 	const inputURL = "https://blog.boot.dev";
 	const inputBody =
-		'<html><body><a href="path/one"><span>Boot.dev></span></a></body></html>';
+		'<html><body><a href="invalid"><span>Boot.dev></span></a></body></html>';
 	const actual = getURLsFromHTML(inputBody, inputURL);
 	const expected = [];
 	expect(actual).toEqual(expected);

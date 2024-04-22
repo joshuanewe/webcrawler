@@ -10,22 +10,25 @@ const normalizeURL = function (url) {
 };
 
 const getURLsFromHTML = function (htmlBody, baseURL) {
-	// baseURL is the root url of the website
 	const urls = [];
 	const dom = new JSDOM(htmlBody);
 	const aElements = dom.window.document.querySelectorAll("a");
 	for (const aElement of aElements) {
 		if (aElement.href.slice(0, 1) === "/") {
+			//relative url
 			try {
-				urls.push(new URL(aElement.href, baseURL).href);
+				const urlObj = new URL(`${baseURL}${aElement.href}`);
+				urls.push(`${baseURL}${aElement.href}`);
 			} catch (err) {
-				console.error(err.message);
+				console.error(`error with relative url ${aElement.href}`);
 			}
+			//absolute url
 		} else {
 			try {
-				urls.push(new URL(aElement.href).href);
+				const urlObj = new URL(aElement.href);
+				urls.push(aElement.href);
 			} catch (err) {
-				console.error(err.message);
+				console.error(`error with absolute url ${aElement.href}`);
 			}
 		}
 	}
@@ -34,23 +37,49 @@ const getURLsFromHTML = function (htmlBody, baseURL) {
 	// this function retursn an un normalized array of urls found within the htmlBody
 };
 
-const crawlPage = async function (url) {
-	try {
-		const response = await fetch(url);
-		if (response.status >= 400) {
-			console.error(
-				`Failed to fetch ${url} due to status code: ${response.status}`
-			);
-			return;
-		}
-		if (!response.headers.get("content-type").includes("text/html")) {
-			console.error("invalid header type, expected text/html");
-			return;
-		}
-		console.log(await response.text());
-	} catch (err) {
-		console.error(err.message);
+const crawlPage = async function (baseURL, currentURL = baseURL, pages = {}) {
+	const baseURLobj = new URL(baseURL);
+	const currentURLobj = new URL(currentURL);
+	if (baseURLobj.hostname !== currentURLobj.hostname) {
+		console.error(
+			`hostname mismatch: ${baseURLobj.hostname} !== ${currentURLobj.hostname}`
+		);
+		return pages;
 	}
+	// normalize the url
+	const normalizedCurrentURL = normalizeURL(currentURL);
+	// page counter
+	if (pages[normalizedCurrentURL] > 0) {
+		pages[normalizedCurrentURL]++;
+		return pages;
+	}
+	pages[normalizedCurrentURL] = 1;
+	console.log(`crawling ${currentURL}`);
+	try {
+		const response = await fetch(currentURL);
+		//404 error handling
+		if (response.status > 399) {
+			console.log(
+				`Failed to fetch ${currentURL} due to status code: ${response.status}`
+			);
+			return pages;
+		}
+		// content type validation
+		const contentType = response.headers.get("content-type");
+		if (!contentType.includes("text/html")) {
+			console.log(`skipping ${currentURL} due to content type ${contentType}`);
+			return pages;
+		}
+		const htmlBody = await response.text();
+		const urls = getURLsFromHTML(htmlBody, baseURL);
+		for (const url of urls) {
+			pages = await crawlPage(baseURL, url, pages);
+		}
+	} catch (err) {
+		console.error(`error in fetch: ${err.message} on ${currentURL}`);
+		return pages;
+	}
+	return pages;
 };
 
 module.exports = {
