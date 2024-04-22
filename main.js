@@ -1,5 +1,6 @@
 const { exit } = require("process");
 const { getURLsFromHTML, normalizeURL, crawlPage } = require("./crawl");
+const { printReport } = require("./report");
 
 async function main() {
 	const args = process.argv.slice(2);
@@ -11,8 +12,6 @@ async function main() {
 	const url = args[0];
 	console.log(`Crawling ${url}...`);
 	const pages = await crawlPage(url);
-	for (const page of Object.entries(pages)) {
-		console.log(page);
-	}
+	printReport(pages);
 }
 main();
